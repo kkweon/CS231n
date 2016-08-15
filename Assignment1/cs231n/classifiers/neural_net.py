@@ -82,9 +82,9 @@ class TwoLayerNet(object):
     
     # Second Layer
     I_output = O_hidden.dot(W2) + b2
+    
     I_output -= np.max(I_output, axis=1).reshape(-1, 1) # Normalization
     softmax = lambda x: np.exp(x) / 1.0 / np.sum(np.exp(x), axis=0) # softmax function
-    
     O_output = np.apply_along_axis(softmax, axis=1, arr=I_output) 
     #############################################################################
     #                              END OF YOUR CODE                             #
@@ -94,6 +94,7 @@ class TwoLayerNet(object):
     if y is None:
       scores = I_output
       return scores
+    
 
     # Compute the loss
     loss = None
