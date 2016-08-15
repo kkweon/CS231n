@@ -1,7 +1,7 @@
 # CS231n 2016 Winter
 CS231n Lectures &amp; Assignments
 
-1. **Assignment 1**
+**1. Assignment 1**
  * **Q1: k-Nearest Neighbor classifier (20 points)**  
  The IPython Notebook knn.ipynb will walk you through implementing the kNN classifier.
  
