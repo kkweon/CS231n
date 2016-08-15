@@ -75,27 +75,24 @@ class TwoLayerNet(object):
     # Store the result in the scores variable, which should be an array of      #
     # shape (N, C).                                                             #
     #############################################################################
-    # bias trick
-    W1 = np.append(W1, b1.reshape(1, -1), axis=0)
-    X = np.append(X, np.ones(shape=(X.shape[0], 1)), axis=1)
-    
-    I_hidden = X.dot(W1)
+ 
+    # First Layer
+    I_hidden = X.dot(W1) + b1
     O_hidden = np.maximum(np.zeros_like(I_hidden), I_hidden)
     
-    W2 = np.append(W2, b2.reshape(1, -1), axis=0)
-    O_hidden = np.append(O_hidden, np.ones(shape=(O_hidden.shape[0], 1)), axis=1)
+    # Second Layer
+    I_output = O_hidden.dot(W2) + b2
+    I_output -= np.max(I_output, axis=1).reshape(-1, 1) # Normalization
+    softmax = lambda x: np.exp(x) / 1.0 / np.sum(np.exp(x), axis=0) # softmax function
     
-    I_output = O_hidden.dot(W2)
-    
-    
-    scores = I_output
-    
+    O_output = np.apply_along_axis(softmax, axis=1, arr=I_output) 
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
     
     # If the targets are not given then jump out, we're done
     if y is None:
+      scores = I_output
       return scores
 
     # Compute the loss
@@ -107,12 +104,11 @@ class TwoLayerNet(object):
     # classifier loss. So that your results match ours, multiply the            #
     # regularization loss by 0.5                                                #
     #############################################################################
-    exp_I_output = np.exp(I_output)
-    rowsum_exp_I_output = np.sum(exp_I_output, axis=1)
-    correct_p = exp_I_output[xrange(len(y)), y] # 맞는 Class의 Exp(Score)
-    correct_p /= rowsum_exp_I_output # Exp(Sum(Score)) 나눔
-    
-    loss = np.mean(-1 * np.log(correct_p)) + 0.5 * reg * np.sum(W1 * W1) + 0.5 * reg * np.sum(W2*W2)
+    correct_scores = O_output[xrange(len(y)), y]
+    mLog_correct_scores = -1 * np.log(correct_scores)
+    loss = np.mean(mLog_correct_scores) # Average of -1 * Log(Softmax(x))
+    loss += 0.5 * reg * np.sum(W1**2)
+    loss += 0.5 * reg * np.sum(W2**2)
     
     #############################################################################
     #                              END OF YOUR CODE                             #
@@ -125,39 +121,35 @@ class TwoLayerNet(object):
     # and biases. Store the results in the grads dictionary. For example,       #
     # grads['W1'] should store the gradient on W1, and be a matrix of same size #
     #############################################################################
-    dW2 = exp_I_output / rowsum_exp_I_output.reshape(-1, 1)
-    dW2[xrange(len(y)), y] -= 1
-    grads['W2'] = O_hidden.T.dot(dW2)[:-1]
-    grads['W2'] /= len(y)
-    grads['W2'] += reg * W2[:-1]
-  
-    grads['b2'] = np.zeros_like(b2) + np.sum(dW2, axis=0)
-    grads['b2'] /= len(y)
+    
+    after_softmax = O_output
+    after_softmax[xrange(len(y)), y] -= 1
+    
+    grads['W2'] = O_hidden.T.dot(after_softmax)
+    grads['W2'] /= N
+    
     #print "X.shape: {}".format(X.shape)
-    #print "W2.shape: {}\t dW2.shape: {}".format(W2.shape, dW2.shape)
-    dX = dW2.dot(W2[:-1].T)
+    #print "I_output.shape: {}, Expected: ({}, {})".format(I_output.shape, N, W2.shape[1])
+    #print("dW2.shape: {}, Expected: {}".format(grads['W2'].shape, W2.shape))
+    grads['W2'] += reg * W2
+    grads['b2'] = np.sum(after_softmax, axis=0)
+    grads['b2'] /= N
+
+    dO_hidden = np.exp(I_output).dot(W2.T) / 1.0 
+    dO_hidden /= np.sum(np.exp(I_output), axis=1).reshape(-1, 1)
+    dO_hidden -= W2[:, y].T
     
-    #print "O_hidden.shape: {}\t dX.shape: {}".format(O_hidden[:, :-1].shape, dX.shape)
-    O_hidden_temp = O_hidden[:, :-1]
+    #print "dO_hidden.shape: {}, Expected: ({}, {})".format(dO_hidden.shape, N, W2.shape[0])
+    
+    grads['W1'] = np.zeros_like(W1)
+    O_hidden_temp = O_hidden
     O_hidden_temp[O_hidden_temp > 0] = 1
-    O_hidden_temp = O_hidden_temp * dX
-    dW1_temp = X[:, :-1].T.dot(O_hidden_temp)
-    #print "W1.shape: {}".format(W1.shape)    
-    #print "dW1_temp.shape: {}".format(dW1_temp.shape)
+    grads['W1'] = X.T.dot(O_hidden_temp * dO_hidden)
+    grads['W1'] /= N
+    grads['W1'] += reg * W1
+    grads['b1'] = np.sum(O_hidden_temp * dO_hidden, axis=0)
+    grads['b1'] /= N
     
-    dW1 = dW1_temp
-    
-    
-    
-    #print "dW1.shape: {}".format(dW1.shape)
-    #dW1 = dW1.T.dot(X[:, :-1]).T
-    #dW1 = X[:, :-1].T.dot(dW1)
-    grads['W1'] = dW1
-    grads['W1'] /= len(y)
-    grads['W1'] += reg * W1[:-1]
-    
-    grads['b1'] = np.zeros_like(b1) + np.sum(O_hidden_temp, axis=0)
-    grads['b1'] /= len(y)
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
