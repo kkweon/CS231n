@@ -1,3 +1,4 @@
+#-*- encoding: utf-8 -*-
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -87,7 +88,7 @@ class TwoLayerNet(object):
     I_output = O_hidden.dot(W2)
     
     
-    scores = I_output#exp_I_output / rowsum_exp_I_output.reshape(-1, 1)
+    scores = I_output
     
     #############################################################################
     #                              END OF YOUR CODE                             #
@@ -108,8 +109,8 @@ class TwoLayerNet(object):
     #############################################################################
     exp_I_output = np.exp(I_output)
     rowsum_exp_I_output = np.sum(exp_I_output, axis=1)
-    correct_p = exp_I_output[xrange(len(y)), y]
-    correct_p /= rowsum_exp_I_output
+    correct_p = exp_I_output[xrange(len(y)), y] # 맞는 Class의 Exp(Score)
+    correct_p /= rowsum_exp_I_output # Exp(Sum(Score)) 나눔
     
     loss = np.mean(-1 * np.log(correct_p)) + 0.5 * reg * np.sum(W1 * W1) + 0.5 * reg * np.sum(W2*W2)
     
@@ -130,15 +131,33 @@ class TwoLayerNet(object):
     grads['W2'] /= len(y)
     grads['W2'] += reg * W2[:-1]
   
-    dW1 = dW2.dot(W2[:-1].T)
-    temp = np.zeros_like(I_hidden)
-    temp[I_hidden > 0] = 1
-    dW1 = temp.dot(W1.T).dot(dW1)[:-1]
+    grads['b2'] = np.zeros_like(b2) + np.sum(dW2, axis=0)
+    grads['b2'] /= len(y)
+    #print "X.shape: {}".format(X.shape)
+    #print "W2.shape: {}\t dW2.shape: {}".format(W2.shape, dW2.shape)
+    dX = dW2.dot(W2[:-1].T)
+    
+    #print "O_hidden.shape: {}\t dX.shape: {}".format(O_hidden[:, :-1].shape, dX.shape)
+    O_hidden_temp = O_hidden[:, :-1]
+    O_hidden_temp[O_hidden_temp > 0] = 1
+    O_hidden_temp = O_hidden_temp * dX
+    dW1_temp = X[:, :-1].T.dot(O_hidden_temp)
+    #print "W1.shape: {}".format(W1.shape)    
+    #print "dW1_temp.shape: {}".format(dW1_temp.shape)
+    
+    dW1 = dW1_temp
+    
+    
+    
+    #print "dW1.shape: {}".format(dW1.shape)
     #dW1 = dW1.T.dot(X[:, :-1]).T
     #dW1 = X[:, :-1].T.dot(dW1)
     grads['W1'] = dW1
     grads['W1'] /= len(y)
     grads['W1'] += reg * W1[:-1]
+    
+    grads['b1'] = np.zeros_like(b1) + np.sum(O_hidden_temp, axis=0)
+    grads['b1'] /= len(y)
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -182,7 +201,9 @@ class TwoLayerNet(object):
       # TODO: Create a random minibatch of training data and labels, storing  #
       # them in X_batch and y_batch respectively.                             #
       #########################################################################
-      pass
+      rand_choices = np.random.choice(xrange(X.shape[0]), batch_size)
+      X_batch = X[rand_choices]
+      y_batch = y[rand_choices]
       #########################################################################
       #                             END OF YOUR CODE                          #
       #########################################################################
@@ -197,7 +218,13 @@ class TwoLayerNet(object):
       # using stochastic gradient descent. You'll need to use the gradients   #
       # stored in the grads dictionary defined above.                         #
       #########################################################################
-      pass
+      self.params['W1'] -= learning_rate * grads['W1']
+      self.params['b1'] -= learning_rate * grads['b1']
+    
+      self.params['W2'] -= learning_rate * grads['W2']
+      self.params['b2'] -= learning_rate * grads['b2']
+      
+        
       #########################################################################
       #                             END OF YOUR CODE                          #
       #########################################################################
@@ -242,7 +269,9 @@ class TwoLayerNet(object):
     ###########################################################################
     # TODO: Implement this function; it should be VERY simple!                #
     ###########################################################################
-    pass
+    scores = self.loss(X)
+    y_pred = np.argmax(scores, axis=1)
+    
     ###########################################################################
     #                              END OF YOUR CODE                           #
     ###########################################################################
