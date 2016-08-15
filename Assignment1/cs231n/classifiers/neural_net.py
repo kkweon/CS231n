@@ -67,6 +67,8 @@ class TwoLayerNet(object):
     W1, b1 = self.params['W1'], self.params['b1']
     W2, b2 = self.params['W2'], self.params['b2']
     N, D = X.shape
+    N /= 1.0
+    D /= 1.0
 
     # Compute the forward pass
     scores = None
@@ -122,17 +124,13 @@ class TwoLayerNet(object):
     # and biases. Store the results in the grads dictionary. For example,       #
     # grads['W1'] should store the gradient on W1, and be a matrix of same size #
     #############################################################################
-    
     after_softmax = O_output
     after_softmax[xrange(len(y)), y] -= 1
     
     grads['W2'] = O_hidden.T.dot(after_softmax)
     grads['W2'] /= N
-    
-    #print "X.shape: {}".format(X.shape)
-    #print "I_output.shape: {}, Expected: ({}, {})".format(I_output.shape, N, W2.shape[1])
-    #print("dW2.shape: {}, Expected: {}".format(grads['W2'].shape, W2.shape))
     grads['W2'] += reg * W2
+    
     grads['b2'] = np.sum(after_softmax, axis=0)
     grads['b2'] /= N
 
@@ -140,14 +138,13 @@ class TwoLayerNet(object):
     dO_hidden /= np.sum(np.exp(I_output), axis=1).reshape(-1, 1)
     dO_hidden -= W2[:, y].T
     
-    #print "dO_hidden.shape: {}, Expected: ({}, {})".format(dO_hidden.shape, N, W2.shape[0])
-    
-    grads['W1'] = np.zeros_like(W1)
     O_hidden_temp = O_hidden
     O_hidden_temp[O_hidden_temp > 0] = 1
+    
     grads['W1'] = X.T.dot(O_hidden_temp * dO_hidden)
     grads['W1'] /= N
     grads['W1'] += reg * W1
+    
     grads['b1'] = np.sum(O_hidden_temp * dO_hidden, axis=0)
     grads['b1'] /= N
     
@@ -249,6 +246,7 @@ class TwoLayerNet(object):
     classes, and assign each data point to the class with the highest score.
 
     Inputs:
+
     - X: A numpy array of shape (N, D) giving N D-dimensional data points to
       classify.
 
