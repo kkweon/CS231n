@@ -200,6 +200,13 @@ class TwoLayerNet(object):
 
       # Compute loss and gradients using the current minibatch
       loss, grads = self.loss(X_batch, y=y_batch, reg=reg)
+      if np.isnan(loss):
+          print "NaN Occurred"
+          return {
+              'loss_history': loss_history,
+              'train_acc_history': train_acc_history,
+              'val_acc_history': val_acc_history,
+          }
       loss_history.append(loss)
 
       #########################################################################
