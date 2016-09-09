@@ -2,6 +2,7 @@ import cPickle as pickle
 import numpy as np
 import os
 from scipy.misc import imread
+#from matplotlib.pyplot import imshow as imread
 
 def load_CIFAR_batch(filename):
   """ load single batch of cifar """
