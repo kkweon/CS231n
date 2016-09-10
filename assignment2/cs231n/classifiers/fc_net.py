@@ -48,8 +48,8 @@ class TwoLayerNet(object):
     self.params['W1'] = np.random.randn(input_dim, hidden_dim) * weight_scale
     self.params['W2'] = np.random.randn(hidden_dim, num_classes) * weight_scale
     
-    self.params['b1'] = np.zeros(100)
-    self.params['b2'] = np.zeros(10)
+    self.params['b1'] = np.zeros(hidden_dim)
+    self.params['b2'] = np.zeros(num_classes)
     
     ############################################################################
     #                             END OF YOUR CODE                             #
