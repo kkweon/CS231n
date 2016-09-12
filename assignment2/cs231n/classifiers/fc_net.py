@@ -182,9 +182,9 @@ class FullyConnectedNet(object):
     # parameters should be initialized to zero.                                #
     ############################################################################
     
-    for i in xrange(self.num_layers - 1):
+    for i in xrange(self.num_layers):
         prev_dim = input_dim if i == 0 else hidden_dims[i-1]
-        next_dim = num_classes if i == len(hidden_dims) else hidden_dims[i]
+        next_dim = num_classes if i == self.num_layers - 1 else hidden_dims[i]
         
         self.params['W' + str(i+1)] = np.random.randn(prev_dim, next_dim) * weight_scale
         self.params['b' + str(i+1)] = np.zeros(next_dim)
@@ -247,11 +247,11 @@ class FullyConnectedNet(object):
     ############################################################################
     a = X
     all_cache = dict()
-    for i in xrange(self.num_layers-1):
+    for i in xrange(self.num_layers):
         W = self.params['W{}'.format(i + 1)]
         b = self.params['b{}'.format(i + 1)]
         
-        if i == self.num_layers - 2:
+        if i == self.num_layers - 1:
             a, cache = affine_forward(a, W, b) #cache = (x, w, b)
         else:
             a, cache = affine_relu_forward(a, W, b) #cache = ((x, w, b), relu_cache)
@@ -280,11 +280,25 @@ class FullyConnectedNet(object):
     # automated tests, make sure that your L2 regularization includes a factor #
     # of 0.5 to simplify the expression for the gradient.                      #
     ############################################################################
+    # LOSS
     loss, dout = softmax_loss(a, y)
     if self.reg > 0.0:
-        for i in xrange(self.num_layers - 1):
+        for i in xrange(self.num_layers):
             W = self.params['W' + str(i + 1)]
             loss += np.sum(np.square(W)) * self.reg * 0.5
+    
+    # GRAD FUNCTION
+    for i in xrange(self.num_layers, 0, -1): # W3 -> W2 -> W1
+        cache = all_cache[i]
+        if i == self.num_layers:
+            dout, dW, db = affine_backward(dout, cache)
+            
+        else:
+            dout, dW, db = affine_relu_backward(dout, cache)
+        
+        grads['W' + str(i)] = dW + self.params['W' + str(i)] * self.reg
+        grads['b' + str(i)] = db
+        
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
