@@ -73,9 +73,9 @@ class ThreeLayerConvNet(object):
                 self.params['W' + idx] = np.random.randn(num_filters * H_new_max_pool * W_new_max_pool, hidden_dim) * weight_scale
                 self.params['b' + idx] = np.zeros(hidden_dim)
                 
-                #if self.use_batchnorm:
-                #    self.params['gamma' + idx] = np.ones(C)
-                #    self.params['beta' + idx] = np.zeros(C)
+                if self.use_batchnorm:
+                    self.params['gamma' + idx] = np.ones(hidden_dim)
+                    self.params['beta' + idx] = np.zeros(hidden_dim)
                     
             else:
                 self.params['W' + idx] = np.random.randn(hidden_dim, num_classes) * weight_scale
@@ -89,7 +89,8 @@ class ThreeLayerConvNet(object):
             self.params[k] = v.astype(dtype)
         
         if self.use_batchnorm:
-            self.bn_params['mode'] = 'train'
+            for i in xrange(2):
+                self.bn_params[i+1] = {'mode': 'train'}
             
             
 
@@ -103,9 +104,11 @@ class ThreeLayerConvNet(object):
         W2, b2 = self.params['W2'], self.params['b2']
         W3, b3 = self.params['W3'], self.params['b3']
         if y is None and self.use_batchnorm:
-            self.bn_params['mode'] = 'test'
+            for k, v in self.bn_params.iteritems():
+                v['mode'] = 'test'
         if y is not None and self.use_batchnorm:
-            self.bn_params['mode'] = 'train'
+            for k, v in self.bn_params.iteritems():
+                v['mode'] = 'train'
         # pass conv_param to the forward pass for the convolutional layer
         filter_size = W1.shape[2]
         conv_param = {'stride': 1, 'pad': (filter_size - 1) / 2}
@@ -119,10 +122,17 @@ class ThreeLayerConvNet(object):
         # computing the class scores for X and storing them in the scores          #
         # variable.                                                                #
         ############################################################################
+        gamma1, beta1 = None, None
+        gamma2, beta2 = None, None
         if self.use_batchnorm:
             gamma1, beta1 = self.params['gamma1'], self.params['beta1']
-        out, cache1    = conv_relu_pool_forward(X, W1, b1, conv_param, pool_param, self.use_batchnorm, gamma1, beta1, self.bn_params)
-        out, cache2    = affine_relu_forward(out, W2, b2)
+            gamma2, beta2 = self.params['gamma2'], self.params['beta2']
+            out, cache1 = conv_relu_batchnorm_pool_forward(X, W1, b1, conv_param, pool_param, gamma1, beta1, self.bn_params[1])
+            out, cache2 = affine_batchnorm_relu_forward(out, W2, b2, gamma2, beta2, self.bn_params[2])
+        else:
+            out, cache1   = conv_relu_pool_forward(X, W1, b1, conv_param, pool_param) 
+            out, cache2   = affine_relu_forward(out, W2, b2)
+        
         scores, cache3 = affine_forward(out, W3, b3)
         
         
@@ -148,10 +158,17 @@ class ThreeLayerConvNet(object):
         loss += loss_reg
         # gradients
         dout, grads['W3'], grads['b3'] = affine_backward(dout, cache3)
-        dout, grads['W2'], grads['b2'] = affine_relu_backward(dout, cache2)
-        dout, grads['W1'], grads['b1'], grads_batch = conv_relu_pool_backward(dout, cache1, self.use_batchnorm)
+        
         if self.use_batchnorm:
-            grads['gamma1'], grads['beta1'] = grads_batch
+            dout, grads['W2'], grads['b2'], grads['gamma2'], grads['beta2'] = affine_batchnorm_relu_backward(dout, cache2)
+            dout, grads['W1'], grads['b1'], grads['gamma1'], grads['beta1'] = conv_relu_batchnorm_pool_backward(dout, cache1)
+        else:
+            dout, grads['W2'], grads['b2'] = affine_relu_backward(dout, cache2)
+            dout, grads['W1'], grads['b1'] = conv_relu_pool_backward(dout, cache1)
+            
+        grads['W3'] += self.reg * self.params['W3']
+        grads['W2'] += self.reg * self.params['W2']            
+        grads['W1'] += self.reg * self.params['W1']
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
