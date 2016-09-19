@@ -266,6 +266,10 @@ class FullyConnectedNet(object):
             else:
                 a, cache = affine_relu_forward(a, W, b)
         
+            if self.use_dropout:
+                a, dropout_cache = dropout_forward(a, self.dropout_param)
+                cache = (cache, dropout_cache)
+                
         all_cache[i+1] = cache
     
     ############################################################################
@@ -304,11 +308,20 @@ class FullyConnectedNet(object):
             dout, dW, db = affine_backward(dout, cache)
         else:
             if self.use_batchnorm:
-                l_cache, b_cache, r_cache = cache
+                if self.use_dropout:
+                    cache, droput_cache = cache
+                    l_cache, b_cache, r_cache = cache
+                    dx = dropout_backward(dout, dropout_cache)
+                else:
+                    l_cache, b_cache, r_cache = cache
+                    
                 dx = relu_backward(dout, r_cache)
                 dx, dgamma, dbeta = batchnorm_backward(dx, b_cache)
                 dout, dW, db = affine_backward(dx, l_cache)
             else:
+                if self.use_dropout:
+                    cache, dropout_cache = cache
+                    dout = dropout_backward(dout, dropout_cache)
                 dout, dW, db = affine_relu_backward(dout, cache)
         
         grads['W' + str(i)] = dW + self.params['W' + str(i)] * self.reg
