@@ -108,6 +108,24 @@ def rmsprop(x, dx, config=None):
 
   return next_x, config
 
+def adadelta(x, dx, config=None):
+    if config is None: 
+        config = {}
+    
+    config.setdefault('learning_rate', 1e-3)
+    
+    config.setdefault('p', 0.999)
+    config.setdefault('g2', np.zeros_like(x))
+    config.setdefault('dx2', np.zeros_like(x))
+    config.setdefault('eps', 1e-8)
+     
+    config['g2'] = config['p'] * config['g2'] + (1 - config['p']) * np.square(dx)
+    
+    delta = - np.sqrt(config['dx2'] + config['eps']) / np.sqrt(config['g2'] + config['eps']) * dx
+    next_x = x + delta    
+    config['dx2'] = config['p'] * config['dx2'] + (1 - config['p']) * np.square(delta)
+    return next_x, config
+
 
 def adam(x, dx, config=None):
   """
