@@ -230,7 +230,7 @@ class CaptioningRNN(object):
         idx_best = np.squeeze(np.argmax(scores, axis=2))
         captions[:, t] = idx_best
         prev_h = h
-        capt = captions[:, t]    
+        word = captions[:, t]    
 
     ############################################################################
     #                             END OF YOUR CODE                             #
