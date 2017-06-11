@@ -1,3 +1,1 @@
-CS231n Winter 2016 Assignments & Practices
-===========================================
-
+# CS231n Spring 2017 Assignments
