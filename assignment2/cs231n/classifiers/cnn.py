@@ -18,7 +18,7 @@ class ThreeLayerConvNet(object):
     """
 
     def __init__(self, input_dim=(3, 32, 32), num_filters=32, filter_size=7,
-                 hidden_dim=100, num_classes=10, weight_scale=1e-3, reg=0.0,
+                 hidden_dim=100, num_classes=10, weight_scale=1e-3, reg=0.0, initializer='he_normal',
                  dtype=np.float32):
         """
         Initialize a new network.
@@ -48,14 +48,69 @@ class ThreeLayerConvNet(object):
         # hidden affine layer, and keys 'W3' and 'b3' for the weights and biases   #
         # of the output affine layer.                                              #
         ############################################################################
-        pass
+        def get_fans(shape):
+            fan_in = shape[0] if len(shape) == 2 else np.prod(shape[1:])
+            fan_out = shape[1] if len(shape) == 2 else shape[0]
+            return fan_in, fan_out
+
+        def uniform(shape, scale=0.05, name=None):
+            return np.random.uniform(low=-scale, high=scale, size=shape)
+
+        def normal(shape, scale=0.05, name=None):
+            return np.random.normal(loc=0.0, scale=scale, size=shape)
+
+        def glorot_normal(shape, name=None):
+            ''' Reference: Glorot & Bengio, AISTATS 2010
+            '''
+            fan_in, fan_out = get_fans(shape)
+            s = np.sqrt(2. / (fan_in + fan_out))
+            return normal(shape, s, name=name)
+
+        def glorot_uniform(shape, name=None):
+            fan_in, fan_out = get_fans(shape)
+            s = np.sqrt(6. / (fan_in + fan_out))
+            return uniform(shape, s, name=name)
+
+        def he_normal(shape, name=None):
+            ''' Reference:  He et al., http://arxiv.org/abs/1502.01852
+            '''
+            fan_in, fan_out = get_fans(shape)
+            s = np.sqrt(2. / fan_in)
+            return normal(shape, s, name=name)
+
+        def he_uniform(shape, name=None):
+            fan_in, fan_out = get_fans(shape)
+            s = np.sqrt(6. / fan_in)
+            return uniform(shape, s, name=name)
+
+        init_options = {
+            'glorot_normal': glorot_normal,
+            'glorot_uniform': glorot_uniform,
+            'he_normal': he_normal,
+            'he_uniform': he_uniform,
+            'normal': lambda shape: normal(shape, scale=weight_scale),
+            'uniform': lambda shape: uniform(shape, scale=weight_scale),
+        }
+
+        C, H, W = input_dim
+        initializer = init_options[initializer]
+
+        self.params['W1'] = initializer((num_filters, C, filter_size, filter_size))
+        self.params['b1'] = np.zeros(num_filters)
+
+        flat_dim = num_filters * H // 2 * W // 2
+
+        self.params['W2'] = initializer((flat_dim, hidden_dim))
+        self.params['b2'] = np.zeros(hidden_dim)
+
+        self.params['W3'] = initializer((hidden_dim, num_classes))
+        self.params['b3'] = np.zeros(num_classes)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
 
         for k, v in self.params.items():
             self.params[k] = v.astype(dtype)
-
 
     def loss(self, X, y=None):
         """
@@ -75,16 +130,20 @@ class ThreeLayerConvNet(object):
         pool_param = {'pool_height': 2, 'pool_width': 2, 'stride': 2}
 
         scores = None
+
+        cache = dict()
         ############################################################################
         # TODO: Implement the forward pass for the three-layer convolutional net,  #
         # computing the class scores for X and storing them in the scores          #
         # variable.                                                                #
         ############################################################################
-        pass
+        out, cache['layer1'] = conv_relu_pool_forward(X, W1, b1, conv_param, pool_param)
+        out, cache['layer2'] = affine_relu_forward(out, W2, b2)
+        scores, cache['layer3'] = affine_forward(out, W3, b3)
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
-
         if y is None:
             return scores
 
@@ -95,7 +154,18 @@ class ThreeLayerConvNet(object):
         # data loss using softmax, and make sure that grads[k] holds the gradients #
         # for self.params[k]. Don't forget to add L2 regularization!               #
         ############################################################################
-        pass
+        loss, dout = softmax_loss(scores, y)
+        dout, grads['W3'], grads['b3'] = affine_backward(dout, cache['layer3'])
+        dout, grads['W2'], grads['b2'] = affine_relu_backward(dout, cache['layer2'])
+        dout, grads['W1'], grads['b1'] = conv_relu_pool_backward(dout, cache['layer1'])
+
+        if self.reg:
+            for i in range(3):
+                layer_id = i + 1
+                W_i = "W{}".format(layer_id)
+                loss += np.sum(np.square(self.params[W_i])) * self.reg * 0.5
+                grads[W_i] += self.reg * self.params[W_i]
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
